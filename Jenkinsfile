@@ -1,39 +1,38 @@
-
- pipeline {
-    agent any
+pipeline {
+    agent any  // Runs on any available Jenkins agent
 
     environment {
-        IMAGE_NAME = "springpetclinic"
-        CONTAINER_NAME = "springpetclinic"
+        APP_NAME = "springpetclinic"  // Application name
+        JAR_FILE = "target/spring-petclinic-2.7.3.jar"  // Path to the built JAR file
     }
 
     triggers {
-        pollSCM('* * * * *') // Trigger on code changes
-        cron('H 0 * * *')    // Trigger every night at 12 AM
+        pollSCM('* * * * *')  // Check for code changes every minute
+        cron('H 0 * * *')     // Run the pipeline every night at 12 AM
     }
 
     stages {
         stage('Checkout Code') {
             steps {
-                  git branch: 'main', url: 'https://github.com/Jaya1728/spring-petclinic.git'
-}
+                git branch: 'main', url: 'https://github.com/Jaya1728/spring-petclinic.git'
+            }
         }
 
-        stage('Build Docker Image') {
+        stage('Build Application') {
             steps {
-                sh "docker build -t $IMAGE_NAME ."
+                sh '''
+                    mvn clean package  // Compile, test, and package the application into a JAR file
+                '''
             }
         }
 
         stage('Deploy Application') {
             steps {
                 sh '''
-                    docker stop $CONTAINER_NAME || true
-                    docker rm $CONTAINER_NAME || true
-                    docker run -d --name $CONTAINER_NAME -p 8090:8080 $IMAGE_NAME
+                    pkill -f "$APP_NAME" || true  // Stop any running instance
+                    nohup java -jar "$JAR_FILE" > app.log 2>&1 &  // Start the application in the background
                 '''
             }
         }
     }
 }
-
