@@ -40,3 +40,4 @@ node {
         // Run new container
         sh "docker run -d --name ${APP_Name} -p 9090:8090 ${dockerImage}"
     }
+}
