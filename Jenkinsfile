@@ -1,22 +1,20 @@
-pipeline {
-    agent any  // Runs on any available Jenkins agent
-
+node {
     environment {
-        APP_NAME = "springpetclinic"  // Application name
-        JAR_FILE = "target/spring-petclinic-2.7.3.jar"  // Path to the built JAR file
+        APP_NAME = "springpetclinic"
+        dockerImage= "target/spring-petclinic-2.7.3.jar"
     }
 
     triggers {
-        pollSCM('* * * * *')  // Check for code changes every minute
-        cron('H 0 * * *')     // Run the pipeline every night at 12 AM
+        pollSCM('* * * * *')
+        cron('H 0 * * *')
     }
 
-    stages {
         stage('Checkout Code') {
             steps {
                 git branch: 'main', url: 'https://github.com/Jaya1728/spring-petclinic.git'
             }
-        }
+
+}
 
         stage('Build Application') {
             steps {
@@ -26,13 +24,19 @@ pipeline {
             }
         }
 
-        stage('Deploy Application') {
-            steps {
-                sh '''
-                    pkill -f "$APP_NAME" || true  // Stop any running instance
-                    nohup java -jar "$JAR_FILE" > app.log 2>&1 &  // Start the application in the background
-                '''
-            }
+          stage('Test') {
+        junit '**/target/surefire-reports/TEST-*.xml'
+        archiveArtifacts 'target/*.jar'
+
+
         }
+    stage('Build Docker Image') {
+        sh "docker build -t ${dockerImage} ."
     }
-}
+
+  stage('Run Docker Container') {
+        // Stop and remove any previous container
+        sh "docker rm -f ${APP_Name} || true"
+        // Run new container
+        sh "docker run -d --name ${APP_Name} -p 9090:8090 ${dockerImage}"
+    }
