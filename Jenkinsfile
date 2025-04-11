@@ -1,5 +1,5 @@
-pipeline {
-    agent any
+node {
+
 
     environment {
         APP_NAME = "springpetclinic"
