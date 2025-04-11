@@ -1,6 +1,4 @@
 node {
-
-
     environment {
         APP_NAME = "springpetclinic"
         DOCKER_IMAGE = "springpetclinic:latest" // use a proper image tag instead of path to jar
