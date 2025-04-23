@@ -2,50 +2,62 @@ pipeline {
     agent any
 
     environment {
-        APP_NAME = "springpetclinic"
-        DOCKER_IMAGE = "springpetclinic:latest" // use a proper image tag instead of path to jar
-    }
-
-    triggers {
-        pollSCM('* * * * *')  // Poll every minute
-        cron('H 0 * * *')     // Daily at midnight
+        DOCKER_IMAGE = 'spring-petclinic-image'
+        DOCKER_TAG = 'latest'
+        DOCKER_REGISTRY = ''   
     }
 
     stages {
         stage('Checkout Code') {
             steps {
-                git branch: 'main', url: 'https://github.com/Jaya1728/spring-petclinic.git'
-            }
-        }
-
-        stage('Build Application') {
-            steps {
-                sh 'mvn clean package'
-            }
-        }
-
-        stage('Test') {
-            steps {
-                junit '**/target/surefire-reports/TEST-*.xml'
-                archiveArtifacts artifacts: 'target/*.jar', fingerprint: true
+                git 'https://github.com/Jaya1728/spring-petclinic.git'
             }
         }
 
         stage('Build Docker Image') {
             steps {
-                sh 'docker build -t $DOCKER_IMAGE .'
+                script {
+                    sh 'docker build -t $DOCKER_IMAGE:$DOCKER_TAG .'
+                }
             }
         }
 
         stage('Run Docker Container') {
             steps {
-                // Stop and remove any existing container
-                sh 'docker rm -f $APP_NAME || true'
+                script {
+                    sh 'docker run -d -p 8080:8080 --name spring-petclinic $DOCKER_IMAGE:$DOCKER_TAG'
+                }
+            }
+        }
 
-                // Run new container
-                sh 'docker run -d --name $APP_NAME -p 9090:8080 $DOCKER_IMAGE'
-                // Port mapping assumes your app runs on port 8080 inside container
+        stage('Test Application') {
+            steps {
+                script {
+                    sleep 10
+                    sh 'curl --silent --fail http://localhost:8080 || exit 1'
+                }
+            }
+        }
+
+        stage('Clean Up') {
+            steps {
+                script {
+                    sh 'docker stop spring-petclinic || true'
+                    sh 'docker rm spring-petclinic || true'
+                }
             }
         }
     }
-}
+
+    post {
+        always {
+            sh 'docker rmi $DOCKER_IMAGE:$DOCKER_TAG || true'
+        }
+        success {
+            echo 'Pipeline succeeded!'
+        }
+        failure {
+            echo 'Pipeline failed.'
+        }
+    }
+} 
