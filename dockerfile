@@ -1,21 +1,26 @@
-FROM ubuntu:24.04
+# Use an official Maven image to build the app
+FROM maven:3.9.6-eclipse-temurin-17 AS build
 
-# Install dependencies
-RUN apt-get update && \
-    apt-get install -y openjdk-17-jdk maven git && \
-    rm -rf /var/lib/apt/lists/*
+# Set the working directory
+WORKDIR /app
 
-# Clone the Spring Boot project
-RUN git clone https://github.com/Jaya1728/spring-petclinic.git /spring-petclinic
+# Copy the project files
+COPY . .
 
-# Set working directory
-WORKDIR /spring-petclinic
+# Build the project and package the JAR
+RUN mvn clean package -DskipTests
 
-# Build the Spring Boot application
-RUN mvn clean package
+# Use a lightweight JRE to run the app
+FROM eclipse-temurin:17-jre-alpine
 
-# Expose application port
-EXPOSE 8090
+# Set the working directory
+WORKDIR /app
 
-# Run the Spring Boot application
-CMD ["java", "-jar", "target/spring-petclinic-2.7.3.jar"]
+# Copy the JAR from the builder stage
+COPY --from=build /app/target/*.jar app.jar
+
+# Expose port
+EXPOSE 8080
+
+# Start the Spring Boot app
+ENTRYPOINT ["java", "-jar", "app.jar"]
